@@ -29,37 +29,25 @@ public class FlightService {
 	}
 
 	public Mono<Flight> updateFlight(String id, Map<String, Object> updates) {
-
-		return flightRepository.findById(id).switchIfEmpty(Mono.error(new RuntimeException("Flight not found")))
-				.flatMap(flight -> {
-
-					if (updates.containsKey("airline")) {
-						flight.setAirline((String) updates.get("airline"));
-					}
-					if (updates.containsKey("fromPlace")) {
-						flight.setFromPlace((String) updates.get("fromPlace"));
-					}
-					if (updates.containsKey("toPlace")) {
-						flight.setToPlace((String) updates.get("toPlace"));
-					}
-					if (updates.containsKey("departureTime")) {
-						flight.setDepartureTime(LocalDateTime.parse((String) updates.get("departureTime")));
-					}
-					if (updates.containsKey("arrivalTime")) {
-						flight.setArrivalTime(LocalDateTime.parse((String) updates.get("arrivalTime")));
-					}
-					if (updates.containsKey("price")) {
-						flight.setPrice(((Number) updates.get("price")).intValue());
-					}
-					if (updates.containsKey("totalSeats")) {
-						flight.setTotalSeats(((Number) updates.get("totalSeats")).intValue());
-					}
-					if (updates.containsKey("availableSeats")) {
-						flight.setAvailableSeats(((Number) updates.get("availableSeats")).intValue());
-					}
-
-					return flightRepository.save(flight);
-				});
+	    return flightRepository.findById(id)
+	            .switchIfEmpty(Mono.error(new RuntimeException("Flight not found")))
+	            .flatMap(flight -> {
+	                updates.forEach((key, value) -> {
+	                    switch (key) {
+	                        case "airline" -> flight.setAirline((String) value);
+	                        case "fromPlace" -> flight.setFromPlace((String) value);
+	                        case "toPlace" -> flight.setToPlace((String) value);
+	                        case "departureTime" -> flight.setDepartureTime(LocalDateTime.parse((String) value));
+	                        case "arrivalTime" -> flight.setArrivalTime(LocalDateTime.parse((String) value));
+	                        case "price" -> flight.setPrice(((Number) value).intValue());
+	                        case "totalSeats" -> flight.setTotalSeats(((Number) value).intValue());
+	                        case "availableSeats" -> flight.setAvailableSeats(((Number) value).intValue());
+	                        default -> {
+	                        }
+	                    }
+	                });
+	                return flightRepository.save(flight);
+	            });
 	}
 
 	public Flux<Flight> getAllFlights() {
