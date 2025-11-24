@@ -1,9 +1,12 @@
 package com.flightapp.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -141,18 +144,17 @@ class TicketServiceTest {
 		Ticket ticket = new Ticket();
 		ticket.setUserId("U1");
 
-		when(userRepository.findByEmail("sreenidhi@test.com")).thenReturn(Mono.just(user));
+		when(userRepository.findByEmail("pooja@gmail.com")).thenReturn(Mono.just(user));
 		when(ticketRepository.findByUserId("U1")).thenReturn(Flux.just(ticket));
 
-		StepVerifier.create(ticketService.getHistory("sreenidhi@test.com")).expectNext(ticket).verifyComplete();
+		StepVerifier.create(ticketService.getHistory("pooja@gmail.com")).expectNext(ticket).verifyComplete();
 	}
 
 	@Test
 	void testGetHistory_UserNotFound() {
-		when(userRepository.findByEmail("sreenidhi@test.com")).thenReturn(Mono.empty());
+		when(userRepository.findByEmail("pooja@gmail.com")).thenReturn(Mono.empty());
 
-		StepVerifier.create(ticketService.getHistory("sreenidhi@test.com")).expectErrorMessage("User not found")
-				.verify();
+		StepVerifier.create(ticketService.getHistory("pooja@gmail.com")).expectErrorMessage("User not found").verify();
 	}
 
 	@Test
@@ -202,5 +204,91 @@ class TicketServiceTest {
 		when(ticketRepository.save(ticket)).thenReturn(Mono.just(ticket));
 
 		StepVerifier.create(ticketService.cancelTicket("PNR1")).expectNext("Cancelled Successfully").verifyComplete();
+	}
+
+	@Test
+	void testBookTicket_NotEnoughSeats_Return_MultiplePassengers() {
+		Passenger p1 = new Passenger();
+		p1.setSeatNumber("1A");
+
+		Passenger p2 = new Passenger();
+		p2.setSeatNumber("1B");
+
+		List<Passenger> passengers = Arrays.asList(p1, p2);
+
+		retFlight.setAvailableSeats(1);
+
+		when(userRepository.findById("U1")).thenReturn(Mono.just(user));
+		when(flightRepository.findById("F1")).thenReturn(Mono.just(depFlight));
+		when(flightRepository.save(depFlight)).thenReturn(Mono.just(depFlight));
+		when(flightRepository.findById("F2")).thenReturn(Mono.just(retFlight));
+
+		StepVerifier.create(ticketService.bookTicket("U1", "F1", "F2", passengers, FlightType.ROUND_TRIP))
+				.expectErrorMessage("Not enough seats in return flight").verify();
+	}
+
+	@Test
+	void testBookTicket_Success_RoundTrip() {
+		Passenger p = new Passenger();
+		p.setSeatNumber("1A");
+
+		List<Passenger> passengers = Collections.singletonList(p);
+
+		when(userRepository.findById("U1")).thenReturn(Mono.just(user));
+		when(flightRepository.findById("F1")).thenReturn(Mono.just(depFlight));
+		when(flightRepository.save(depFlight)).thenReturn(Mono.just(depFlight));
+
+		when(flightRepository.findById("F2")).thenReturn(Mono.just(retFlight));
+		when(flightRepository.save(retFlight)).thenReturn(Mono.just(retFlight));
+
+		Ticket savedTicket = new Ticket();
+		savedTicket.setPnr("PNR9876");
+
+		when(ticketRepository.save(any())).thenReturn(Mono.just(savedTicket));
+
+		StepVerifier.create(ticketService.bookTicket("U1", "F1", "F2", passengers, FlightType.ROUND_TRIP))
+				.expectNext("PNR9876").verifyComplete();
+
+		assert depFlight.getAvailableSeats() == 4;
+		assert retFlight.getAvailableSeats() == 6;
+	}
+
+	@Test
+	void testCreateTicket_CalculatesRoundTripPriceCorrectly() {
+		Passenger p = new Passenger();
+		p.setSeatNumber("1A");
+
+		Flight depFlight = new Flight();
+		depFlight.setId("F1");
+		depFlight.setPrice(100);
+		depFlight.setAvailableSeats(10);
+
+		Flight retFlight = new Flight();
+		retFlight.setId("F2");
+		retFlight.setPrice(100);
+		retFlight.setAvailableSeats(10);
+
+		User user = new User();
+		user.setId("U1");
+
+		Ticket savedTicket = new Ticket();
+		savedTicket.setPnr("PNR1234");
+
+		when(userRepository.findById("U1")).thenReturn(Mono.just(user));
+		when(flightRepository.findById("F1")).thenReturn(Mono.just(depFlight));
+		when(flightRepository.findById("F2")).thenReturn(Mono.just(retFlight));
+
+		when(flightRepository.save(depFlight)).thenReturn(Mono.just(depFlight));
+		when(flightRepository.save(retFlight)).thenReturn(Mono.just(retFlight));
+		when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> {
+			Ticket t = inv.getArgument(0);
+			savedTicket.setTotalPrice(t.getTotalPrice());
+			return Mono.just(savedTicket);
+		});
+		Mono<String> result = ticketService.bookTicket("U1", "F1", "F2", Collections.singletonList(p),
+				FlightType.ROUND_TRIP);
+		StepVerifier.create(result).expectNext("PNR1234").verifyComplete();
+
+		assertEquals(200.0, savedTicket.getTotalPrice());
 	}
 }
