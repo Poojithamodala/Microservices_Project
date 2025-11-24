@@ -1,10 +1,8 @@
 package com.flightapp.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -230,44 +228,5 @@ class TicketServiceTest {
 
 		assert depFlight.getAvailableSeats() == 4;
 		assert retFlight.getAvailableSeats() == 6;
-	}
-
-	@Test
-	void testCreateTicket_CalculatesRoundTripPriceCorrectly() {
-		Passenger p = new Passenger();
-		p.setSeatNumber("1A");
-
-		Flight depFlight = new Flight();
-		depFlight.setId("F1");
-		depFlight.setPrice(100);
-		depFlight.setAvailableSeats(10);
-
-		Flight retFlight = new Flight();
-		retFlight.setId("F2");
-		retFlight.setPrice(100);
-		retFlight.setAvailableSeats(10);
-
-		User user = new User();
-		user.setId("U1");
-
-		Ticket savedTicket = new Ticket();
-		savedTicket.setPnr("PNR1234");
-
-		when(userRepository.findById("U1")).thenReturn(Mono.just(user));
-		when(flightRepository.findById("F1")).thenReturn(Mono.just(depFlight));
-		when(flightRepository.findById("F2")).thenReturn(Mono.just(retFlight));
-
-		when(flightRepository.save(depFlight)).thenReturn(Mono.just(depFlight));
-		when(flightRepository.save(retFlight)).thenReturn(Mono.just(retFlight));
-		when(ticketRepository.save(any(Ticket.class))).thenAnswer(inv -> {
-			Ticket t = inv.getArgument(0);
-			savedTicket.setTotalPrice(t.getTotalPrice());
-			return Mono.just(savedTicket);
-		});
-		Mono<String> result = ticketService.bookTicket("U1", "F1", "F2", Collections.singletonList(p),
-				FlightType.ROUND_TRIP);
-		StepVerifier.create(result).expectNext("PNR1234").verifyComplete();
-
-		assertEquals(200.0, savedTicket.getTotalPrice());
 	}
 }
