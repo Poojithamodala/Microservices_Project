@@ -18,7 +18,7 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
 
-public class TicketTest {
+class TicketTest {
 
 	private static Validator validator;
 
