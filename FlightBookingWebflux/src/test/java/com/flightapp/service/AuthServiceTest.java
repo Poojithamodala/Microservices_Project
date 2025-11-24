@@ -1,6 +1,7 @@
 package com.flightapp.service;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import java.util.UUID;
@@ -33,13 +34,10 @@ class AuthServiceTest {
 
         user = new User();
         user.setId(UUID.randomUUID().toString());
-        user.setEmail("sreenidhi@gmail.com");
-        user.setPassword("password");
+        user.setEmail("pooja@gmail.com");
+        user.setPassword("password123");
     }
 
-    // ----------------------------------------------------
-    // REGISTER TEST
-    // ----------------------------------------------------
     @Test
     void testRegister_Success() {
         when(userRepository.save(user)).thenReturn(Mono.just(user));
@@ -49,67 +47,53 @@ class AuthServiceTest {
                 .verifyComplete();
     }
 
-    // ----------------------------------------------------
-    // LOGIN SUCCESS
-    // ----------------------------------------------------
     @Test
     void testLogin_Success() {
         when(userRepository.findByEmail(user.getEmail()))
                 .thenReturn(Mono.just(user));
 
-        StepVerifier.create(authService.login("sreenidhi@gmail.com", "password"))
+        StepVerifier.create(authService.login("pooja@gmail.com", "password123"))
                 .assertNext(sessionId -> assertNotNull(sessionId))
                 .verifyComplete();
     }
 
-    // ----------------------------------------------------
-    // LOGIN – USER NOT FOUND
-    // ----------------------------------------------------
     @Test
     void testLogin_UserNotFound() {
-        when(userRepository.findByEmail("sreenidhi@gmail.com"))
+        when(userRepository.findByEmail("pooja@gmail.com"))
                 .thenReturn(Mono.empty());
 
-        StepVerifier.create(authService.login("sreenidhi@gmail.com", "password"))
+        StepVerifier.create(authService.login("pooja@gmail.com", "password123"))
                 .expectErrorMatches(e ->
                         e instanceof RuntimeException &&
                         e.getMessage().equals("User not found"))
                 .verify();
     }
 
-    // ----------------------------------------------------
-    // LOGIN – INVALID PASSWORD
-    // ----------------------------------------------------
     @Test
     void testLogin_InvalidPassword() {
         User wrongUser = new User();
-        wrongUser.setEmail("sreenidhi@gmail.com");
-        wrongUser.setPassword("wrongpass");
+        wrongUser.setEmail("pooja@gmail.com");
+        wrongUser.setPassword("pass123");
 
-        when(userRepository.findByEmail("sreenidhi@gmail.com"))
+        when(userRepository.findByEmail("pooja@gmail.com"))
                 .thenReturn(Mono.just(wrongUser));
 
-        StepVerifier.create(authService.login("sreenidhi@gmail.com", "password"))
+        StepVerifier.create(authService.login("pooja@gmail.com", "password123"))
                 .expectErrorMatches(e ->
                         e instanceof RuntimeException &&
                         e.getMessage().equals("Invalid password"))
                 .verify();
     }
-
-    // ----------------------------------------------------
-    // GET LOGGED-IN USER SUCCESS
-    // ----------------------------------------------------
+    
     @Test
     void testGetLoggedInUser_Success() {
 
-        // Mock login
         when(userRepository.findByEmail(user.getEmail()))
                 .thenReturn(Mono.just(user));
 
-        String sessionId = authService.login("sreenidhi@gmail.com", "password")
-                .block();  // session stored internally
+        String sessionId = authService.login("pooja@gmail.com", "password123")
+                .block();  
 
-        // Mock again for getUser
         when(userRepository.findByEmail(user.getEmail()))
                 .thenReturn(Mono.just(user));
 
@@ -118,9 +102,6 @@ class AuthServiceTest {
                 .verifyComplete();
     }
 
-    // ----------------------------------------------------
-    // GET LOGGED-IN USER – INVALID SESSION
-    // ----------------------------------------------------
     @Test
     void testGetLoggedInUser_InvalidSession() {
 
@@ -129,5 +110,55 @@ class AuthServiceTest {
                         e instanceof RuntimeException &&
                         e.getMessage().equals("Invalid session ID"))
                 .verify();
+    }
+    
+    @Test
+    void testRegister_GeneratesId_WhenIdIsNull() {
+        User user = new User();
+        user.setId(null);
+        user.setEmail("pooja@gmail.com");
+        user.setPassword("pass");
+
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+        StepVerifier.create(authService.register(user))
+                .assertNext(savedUser -> {
+                    assert savedUser.getId() != null;       
+                    assert !savedUser.getId().isBlank();    
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void testRegister_GeneratesId_WhenIdIsBlank() {
+        User user = new User();
+        user.setId(""); 
+        user.setEmail("pooja@gmail.com");
+        user.setPassword("pass");
+
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
+
+        StepVerifier.create(authService.register(user))
+                .assertNext(savedUser -> {
+                    assert savedUser.getId() != null;
+                    assert !savedUser.getId().isBlank();
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void testRegister_DoesNotGenerateNewId_WhenIdExists() {
+        User user = new User();
+        user.setId("EXISTING-ID");
+        user.setEmail("pooja@gmail.com");
+        user.setPassword("pass");
+
+        when(userRepository.save(any(User.class))).thenReturn(Mono.just(user));
+
+        StepVerifier.create(authService.register(user))
+                .assertNext(savedUser -> {
+                    assert savedUser.getId().equals("EXISTING-ID");
+                })
+                .verifyComplete();
     }
 }
