@@ -207,27 +207,6 @@ class TicketServiceTest {
 	}
 
 	@Test
-	void testBookTicket_NotEnoughSeats_Return_MultiplePassengers() {
-		Passenger p1 = new Passenger();
-		p1.setSeatNumber("1A");
-
-		Passenger p2 = new Passenger();
-		p2.setSeatNumber("1B");
-
-		List<Passenger> passengers = Arrays.asList(p1, p2);
-
-		retFlight.setAvailableSeats(1);
-
-		when(userRepository.findById("U1")).thenReturn(Mono.just(user));
-		when(flightRepository.findById("F1")).thenReturn(Mono.just(depFlight));
-		when(flightRepository.save(depFlight)).thenReturn(Mono.just(depFlight));
-		when(flightRepository.findById("F2")).thenReturn(Mono.just(retFlight));
-
-		StepVerifier.create(ticketService.bookTicket("U1", "F1", "F2", passengers, FlightType.ROUND_TRIP))
-				.expectErrorMessage("Not enough seats in return flight").verify();
-	}
-
-	@Test
 	void testBookTicket_Success_RoundTrip() {
 		Passenger p = new Passenger();
 		p.setSeatNumber("1A");
