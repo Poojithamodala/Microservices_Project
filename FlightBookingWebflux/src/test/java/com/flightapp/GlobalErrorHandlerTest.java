@@ -16,7 +16,7 @@ import org.springframework.web.bind.support.WebExchangeBindException;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-public class GlobalErrorHandlerTest {
+class GlobalErrorHandlerTest {
 
 	private GlobalErrorHandler errorHandler;
 
