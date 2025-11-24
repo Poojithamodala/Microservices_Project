@@ -75,7 +75,7 @@ class PassengerTest {
 		assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("age")));
 
 		passenger.setAge(-5);
-		violations = validator.validate(passenger);
+		assertTrue(validator.validate(passenger).stream().anyMatch(v -> v.getPropertyPath().toString().equals("age")));
 
 		passenger.setAge(30);
 		violations = validator.validate(passenger);
