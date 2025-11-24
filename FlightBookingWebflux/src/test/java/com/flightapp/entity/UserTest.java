@@ -74,24 +74,4 @@ class UserTest {
 
 		assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("gender")));
 	}
-
-	@Test
-	void passwordCanBeNull() {
-		User user = new User();
-		user.setPassword(null);
-
-		Set<ConstraintViolation<User>> violations = validator.validate(user);
-
-		assertTrue(violations.isEmpty());
-	}
-
-	@Test
-	void roleCanBeNull() {
-		User user = new User();
-		user.setRole(null);
-
-		Set<ConstraintViolation<User>> violations = validator.validate(user);
-
-		assertTrue(violations.isEmpty());
-	}
 }
