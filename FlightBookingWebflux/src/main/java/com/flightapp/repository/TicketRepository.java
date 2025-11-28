@@ -12,4 +12,6 @@ public interface TicketRepository extends ReactiveCrudRepository<Ticket, String>
 	Mono<Ticket> findByPnr(String pnr);
 
 	Flux<Ticket> findByUserId(String userId);
+	
+	Flux<Ticket> findByDepartureFlightId(String departureFlightId);
 }

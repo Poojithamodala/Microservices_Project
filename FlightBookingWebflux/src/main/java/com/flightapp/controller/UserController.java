@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.flightapp.entity.Flight;
@@ -19,11 +20,12 @@ import com.flightapp.service.AuthService;
 import com.flightapp.service.FlightService;
 import com.flightapp.service.TicketService;
 
+import jakarta.validation.Valid;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/v1.0/flight")
+@RequestMapping("/flight")
 public class UserController {
 
 	private final AuthService authService;
@@ -37,24 +39,25 @@ public class UserController {
 	}
 
 	@PostMapping("/user/register")
-	public Mono<User> register(@RequestBody User user) {
+	@ResponseStatus(HttpStatus.CREATED)
+	public Mono<User> register(@Valid @RequestBody User user) {
 		return authService.register(user);
 	}
 
 	@PostMapping("/user/login")
-	public Mono<String> userLogin(@RequestBody User user) {
+	public Mono<String> userLogin(@Valid @RequestBody User user) {
 		return authService.login(user.getEmail(), user.getPassword())
 				.onErrorResume(e -> Mono.just("Invalid credentials"));
 	}
 
 	@PostMapping("/search")
-	public Flux<Flight> searchFlights(@RequestBody Map<String, String> f) {
+	public Flux<Flight> searchFlights( @RequestBody Map<String, String> f) {
 		return flightService.findByFromPlaceAndToPlaceAndDepartureTimeBetween(f.get("fromPlace"), f.get("toPlace"),
 				f.get("departureTime"), f.get("arrivalTime"));
 	}
 
 	@PostMapping("/search/airline")
-	public Flux<Flight> searchByAirline(@RequestBody Map<String, String> body) {
+	public Flux<Flight> searchByAirline( @RequestBody Map<String, String> body) {
 		return flightService.searchFlightsByAirline(body.get("fromPlace"), body.get("toPlace"), body.get("airline"));
 	}
 
@@ -64,7 +67,8 @@ public class UserController {
 	}
 
 	@PostMapping("/booking")
-	public Mono<ResponseEntity<Map<String, String>>> bookTicket(@RequestBody Mono<Ticket> ticketMono) {
+	@ResponseStatus(HttpStatus.CREATED)
+	public Mono<ResponseEntity<Map<String, String>>> bookTicket(@Valid @RequestBody Mono<Ticket> ticketMono) {
 		return ticketMono
 				.flatMap(ticket -> ticketService.bookTicket(ticket.getUserId(), ticket.getDepartureFlightId(),
 						ticket.getReturnFlightId(), ticket.getPassengers(), ticket.getTripType()))

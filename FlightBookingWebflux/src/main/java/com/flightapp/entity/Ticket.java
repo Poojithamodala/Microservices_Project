@@ -6,6 +6,8 @@ import java.util.List;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 
 @Data
@@ -30,6 +32,8 @@ public class Ticket {
 	private LocalDateTime bookingTime;
 
 	private boolean cancel;
-
+	
+	@Valid
+	@NotEmpty(message = "At least one passenger is required")
 	private List<Passenger> passengers;
 }

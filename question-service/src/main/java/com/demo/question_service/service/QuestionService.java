@@ -2,6 +2,7 @@ package com.demo.question_service.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -43,15 +44,19 @@ public class QuestionService {
 		questionDao.save(question);
 		return new ResponseEntity<>("success", HttpStatus.CREATED);
 	}
-	
-	public ResponseEntity<List<Integer>> getQuestionsForQuiz(String categoryName, Integer numOfQuestions){
-		List<Integer> questions=questionDao.findRandomQuestionsByCategory(categoryName, numOfQuestions);
-		return new ResponseEntity<>(questions, HttpStatus.OK);
-	}
-//	public List<Integer> getQuestionsForQuiz(String category, int numOfQuestions) {
-//	    Pageable limit = PageRequest.of(0, numOfQuestions);
-//	    return questionDao.findRandomQuestionsByCategory(category, limit);
+
+//	public ResponseEntity<List<Integer>> getQuestionsForQuiz(String categoryName, Integer numOfQuestions){
+//		List<Integer> questions=questionDao.findRandomQuestionsByCategory(categoryName, numOfQuestions);
+//		return new ResponseEntity<>(questions, HttpStatus.OK);
 //	}
+	public List<Integer> getQuestionsForQuiz(String categoryName, Integer numQuestions) {
+
+        Pageable limit = PageRequest.of(0, numQuestions);
+
+        List<Question> questions = questionDao.findRandomQuestionsByCategory(categoryName, limit);
+
+        return questions.stream().map(Question::getId).collect(Collectors.toList());
+    }
 
 	public ResponseEntity<List<QuestionWrapper>> getQuestionsFromId(List<Integer> questionIds) {
 		List<QuestionWrapper> wrappers = new ArrayList<>();

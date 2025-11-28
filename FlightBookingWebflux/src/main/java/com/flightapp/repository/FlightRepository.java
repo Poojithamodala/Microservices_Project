@@ -7,6 +7,7 @@ import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import com.flightapp.entity.Flight;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 public interface FlightRepository extends ReactiveCrudRepository<Flight, String> {
 
@@ -14,4 +15,7 @@ public interface FlightRepository extends ReactiveCrudRepository<Flight, String>
 			LocalDateTime end);
 
 	Flux<Flight> findByFromPlaceAndToPlaceAndAirline(String fromPlace, String toPlace, String airline);
+
+	Mono<Flight> findByAirlineAndFromPlaceAndToPlaceAndDepartureTime(String airline, String fromPlace, String toPlace,
+			LocalDateTime departureTime);
 }

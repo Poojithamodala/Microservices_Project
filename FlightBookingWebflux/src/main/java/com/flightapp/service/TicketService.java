@@ -1,7 +1,10 @@
 package com.flightapp.service;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -36,42 +39,62 @@ public class TicketService {
 			List<Passenger> passengers, FlightType tripType) {
 
 		int seatCount = passengers.size();
+		List<String> seatList = passengers.stream().map(Passenger::getSeatNumber).collect(Collectors.toList());
 
-		return userRepository.findById(userId).switchIfEmpty(Mono.error(new RuntimeException("User not found")))
-				.flatMap(user -> flightRepository.findById(departureFlightId)
-						.switchIfEmpty(Mono.error(new RuntimeException("Departure flight not found")))
-						.flatMap(depFlight -> {
+		Set<String> uniqueSeats = new HashSet<>(seatList);
+		if (uniqueSeats.size() != seatList.size()) {
+			return Mono.error(new RuntimeException("Duplicate seat numbers selected"));
+		}
 
-							if (depFlight.getAvailableSeats() < seatCount)
-								return Mono.error(new RuntimeException("Not enough seats in departure flight"));
+		Mono<Void> seatAlreadyBookedCheck = ticketRepository.findByDepartureFlightId(departureFlightId)
+				.flatMap(existing -> {
+					List<String> booked = Arrays.asList(existing.getSeatsBooked().split(","));
+					for (String seat : seatList) {
+						if (booked.contains(seat)) {
+							return Mono.error(new RuntimeException("Seat " + seat + " is already booked"));
+						}
+					}
+					return Mono.empty();
+				}).then();
 
-							depFlight.setAvailableSeats(depFlight.getAvailableSeats() - seatCount);
+		return seatAlreadyBookedCheck
+				.then(userRepository.findById(userId).switchIfEmpty(Mono.error(new RuntimeException("User not found")))
+						.flatMap(user -> flightRepository.findById(departureFlightId)
+								.switchIfEmpty(Mono.error(new RuntimeException("Departure flight not found")))
+								.flatMap(depFlight -> {
 
-							return flightRepository.save(depFlight).flatMap(savedDep -> {
+									if (depFlight.getAvailableSeats() < seatCount)
+										return Mono.error(new RuntimeException("Not enough seats in departure flight"));
 
-								if (tripType == FlightType.ONE_WAY) {
-									Ticket ticket = createTicket(userId, savedDep, null, passengers, tripType);
-									return ticketRepository.save(ticket).map(Ticket::getPnr);
-								}
+									depFlight.setAvailableSeats(depFlight.getAvailableSeats() - seatCount);
 
-								return flightRepository.findById(returnFlightId)
-										.switchIfEmpty(Mono.error(new RuntimeException("Return flight not found")))
-										.flatMap(retFlight -> {
+									return flightRepository.save(depFlight).flatMap(savedDep -> {
 
-											if (retFlight.getAvailableSeats() < seatCount)
-												return Mono.error(
-														new RuntimeException("Not enough seats in return flight"));
+										if (tripType == FlightType.ONE_WAY) {
+											Ticket t = createTicket(userId, savedDep, null, passengers, tripType);
+											return ticketRepository.save(t).map(Ticket::getPnr);
+										}
 
-											retFlight.setAvailableSeats(retFlight.getAvailableSeats() + seatCount);
+										return flightRepository.findById(returnFlightId)
+												.switchIfEmpty(
+														Mono.error(new RuntimeException("Return flight not found")))
+												.flatMap(retFlight -> {
 
-											return flightRepository.save(retFlight).flatMap(savedRet -> {
-												Ticket ticket = createTicket(userId, savedDep, savedRet, passengers,
-														tripType);
-												return ticketRepository.save(ticket).map(Ticket::getPnr);
-											});
-										});
-							});
-						}));
+													if (retFlight.getAvailableSeats() < seatCount)
+														return Mono.error(new RuntimeException(
+																"Not enough seats in return flight"));
+
+													retFlight.setAvailableSeats(
+															retFlight.getAvailableSeats() - seatCount);
+
+													return flightRepository.save(retFlight).flatMap(savedRet -> {
+														Ticket t = createTicket(userId, savedDep, savedRet, passengers,
+																tripType);
+														return ticketRepository.save(t).map(Ticket::getPnr);
+													});
+												});
+									});
+								})));
 	}
 
 	private Ticket createTicket(String userId, Flight depFlight, Flight retFlight, List<Passenger> passengers,
@@ -116,27 +139,39 @@ public class TicketService {
 						return Mono.just("Ticket already cancelled");
 					}
 
-					int seatCount = (ticket.getSeatsBooked() != null && !ticket.getSeatsBooked().isEmpty())
-							? ticket.getSeatsBooked().split(",").length
-							: 1;
+					return flightRepository.findById(ticket.getDepartureFlightId())
+							.switchIfEmpty(Mono.error(new RuntimeException("Departure flight not found")))
+							.flatMap(depFlight -> {
 
-					Mono<Flight> saveDep = flightRepository.findById(ticket.getDepartureFlightId()).flatMap(dep -> {
-						dep.setAvailableSeats(dep.getAvailableSeats() + seatCount);
-						return flightRepository.save(dep);
-					});
+								LocalDateTime now = LocalDateTime.now();
+								if (depFlight.getDepartureTime().isBefore(now.plusHours(24))) {
+									return Mono.error(new RuntimeException(
+											"Cannot cancel ticket less than 24 hours before departure"));
+								}
+								int seatCount = (ticket.getSeatsBooked() != null && !ticket.getSeatsBooked().isEmpty())
+										? ticket.getSeatsBooked().split(",").length
+										: 1;
 
-					Mono<Flight> saveRet = Mono.empty();
-					if (ticket.getReturnFlightId() != null) {
-						saveRet = flightRepository.findById(ticket.getReturnFlightId()).flatMap(ret -> {
-							ret.setAvailableSeats(ret.getAvailableSeats() + seatCount);
-							return flightRepository.save(ret);
-						});
-					}
+								Mono<Flight> saveDep = flightRepository.findById(ticket.getDepartureFlightId())
+										.flatMap(dep -> {
+											dep.setAvailableSeats(dep.getAvailableSeats() + seatCount);
+											return flightRepository.save(dep);
+										});
 
-					ticket.setCancel(true);
-					Mono<Ticket> saveTicket = ticketRepository.save(ticket);
+								Mono<Flight> saveRet = Mono.empty();
+								if (ticket.getReturnFlightId() != null) {
+									saveRet = flightRepository.findById(ticket.getReturnFlightId()).flatMap(ret -> {
+										ret.setAvailableSeats(ret.getAvailableSeats() + seatCount);
+										return flightRepository.save(ret);
+									});
+								}
 
-					return Mono.when(saveDep, saveRet, saveTicket).then(Mono.just("Cancelled Successfully"));
+								ticket.setCancel(true);
+								Mono<Ticket> saveTicket = ticketRepository.save(ticket);
+
+								return Mono.when(saveDep, saveRet, saveTicket)
+										.then(Mono.just("Cancelled Successfully"));
+							});
 				});
 	}
 }

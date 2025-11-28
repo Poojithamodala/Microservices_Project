@@ -23,7 +23,7 @@ public class QuizService {
     QuizInterface quizInterface;
 
 
-    public ResponseEntity<String> createQuiz(String category, int numQ, String title) {
+    public ResponseEntity<String> createQuiz(String category, Integer numQ, String title) {
 
         List<Integer> questions = quizInterface.getQuestionsForQuiz(category, numQ).getBody();
         Quiz quiz = new Quiz();

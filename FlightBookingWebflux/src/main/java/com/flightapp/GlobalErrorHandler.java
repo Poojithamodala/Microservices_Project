@@ -3,10 +3,12 @@ package com.flightapp;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.mongodb.DuplicateKeyException;
 
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
@@ -17,17 +19,12 @@ public class GlobalErrorHandler {
 
 	@ExceptionHandler(WebExchangeBindException.class)
 	public Mono<Map<String, String>> handleValidationExceptions(WebExchangeBindException exception) {
-
 		Map<String, String> errors = new HashMap<>();
 
 		exception.getFieldErrors().forEach(error -> {
-			String fieldName = error.getField();
-			String errorMessage = error.getDefaultMessage();
-			errors.put(fieldName, errorMessage);
-			log.warn("Validation failed - field: {}, message: {}", fieldName, errorMessage);
+			errors.put(error.getField(), error.getDefaultMessage());
 		});
 
-		log.info("Returning {} validation errors", errors.size());
 		return Mono.just(errors);
 	}
 
@@ -43,17 +40,20 @@ public class GlobalErrorHandler {
 			errors.put("error", "Duplicate key error");
 		}
 
-		log.error("Duplicate key exception: {}", message);
 		return Mono.just(errors);
+	}
+
+	@ExceptionHandler(ResponseStatusException.class)
+	public Mono<Map<String, String>> handleResponseStatusException(ResponseStatusException ex) {
+		Map<String, String> error = new HashMap<>();
+		error.put("error", ex.getReason());
+		return Mono.just(error);
 	}
 
 	@ExceptionHandler(Exception.class)
 	public Mono<Map<String, String>> handleGeneralException(Exception ex) {
-
 		Map<String, String> error = new HashMap<>();
 		error.put("error", "Internal server error");
-
-		log.error("Unexpected error occurred", ex);
 		return Mono.just(error);
 	}
 }

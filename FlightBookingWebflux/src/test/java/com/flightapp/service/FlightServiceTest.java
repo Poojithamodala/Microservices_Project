@@ -48,9 +48,34 @@ class FlightServiceTest {
 
 	@Test
 	void testAddFlight() {
-		when(flightRepository.save(flight)).thenReturn(Mono.just(flight));
+	    when(flightRepository
+	            .findByAirlineAndFromPlaceAndToPlaceAndDepartureTime(
+	                    flight.getAirline(),
+	                    flight.getFromPlace(),
+	                    flight.getToPlace(),
+	                    flight.getDepartureTime()))
+	            .thenReturn(Mono.empty()); 
 
-		StepVerifier.create(flightService.addFlight(flight)).expectNext(flight).verifyComplete();
+	    when(flightRepository.save(flight)).thenReturn(Mono.just(flight));
+
+	    StepVerifier.create(flightService.addFlight(flight))
+	            .expectNext("Flight added successfully")
+	            .verifyComplete();
+	}
+	
+	@Test
+	void testAddFlightAlreadyExists() {
+	    when(flightRepository
+	            .findByAirlineAndFromPlaceAndToPlaceAndDepartureTime(
+	                    flight.getAirline(),
+	                    flight.getFromPlace(),
+	                    flight.getToPlace(),
+	                    flight.getDepartureTime()))
+	            .thenReturn(Mono.just(flight)); 
+
+	    StepVerifier.create(flightService.addFlight(flight))
+	            .expectErrorMessage("Flight already exists")
+	            .verify();
 	}
 
 	@Test

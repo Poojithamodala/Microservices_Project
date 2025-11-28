@@ -3,7 +3,9 @@ package com.flightapp.service;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.flightapp.entity.Flight;
 import com.flightapp.repository.FlightRepository;
@@ -20,8 +22,26 @@ public class FlightService {
 		this.flightRepository = flightRepository;
 	}
 
-	public Mono<Flight> addFlight(Flight flight) {
-		return flightRepository.save(flight);
+	public Mono<String> addFlight(Flight flight) {
+	    return flightRepository
+	            .findByAirlineAndFromPlaceAndToPlaceAndDepartureTime(
+	                    flight.getAirline(),
+	                    flight.getFromPlace(),
+	                    flight.getToPlace(),
+	                    flight.getDepartureTime()
+	            )
+	            .flatMap(existing ->
+	                    Mono.<String>error(
+	                            new ResponseStatusException(
+	                                    HttpStatus.CONFLICT,
+	                                    "Flight already exists"
+	                            )
+	                    )
+	            )
+	            .switchIfEmpty(
+	                    flightRepository.save(flight)
+	                            .thenReturn("Flight added successfully")
+	            );
 	}
 
 	public Mono<Void> deleteFlight(String flightId) {

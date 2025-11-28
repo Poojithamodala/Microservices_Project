@@ -2,12 +2,14 @@ package com.flightapp.controller;
 
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.flightapp.entity.Flight;
@@ -15,10 +17,11 @@ import com.flightapp.entity.User;
 import com.flightapp.service.AuthService;
 import com.flightapp.service.FlightService;
 
+import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/v1.0/flight/airline")
+@RequestMapping("/flight/airline")
 public class AdminController {
 
 	private final AuthService authService;
@@ -37,8 +40,9 @@ public class AdminController {
 	}
 
 	@PostMapping("/inventory/add")
-	public Mono<String> addFlight(@RequestBody Flight flight) {
-		return flightService.addFlight(flight).then(Mono.just("Flight added successfully"));
+	@ResponseStatus(HttpStatus.CREATED)
+	public Mono<String> addFlight(@Valid @RequestBody Flight flight) {
+		return flightService.addFlight(flight);
 	}
 
 	@PutMapping("/inventory/update/{id}")
