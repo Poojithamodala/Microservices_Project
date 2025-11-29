@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: QUIZ-SERVICE
+resilience4j:
+  circuitbreaker:
+    instances:
+      questionServiceCircuitBreaker:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, circuitbreakers

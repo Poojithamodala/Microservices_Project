@@ -1,6 +1,7 @@
 package com.demo.quiz_service.service;
 
 import java.util.List;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -22,7 +23,7 @@ public class QuizService {
     @Autowired
     QuizInterface quizInterface;
 
-
+    @CircuitBreaker(name = "questionServiceCircuitBreaker", fallbackMethod = "fallbackQuestions")
     public ResponseEntity<String> createQuiz(String category, Integer numQ, String title) {
 
         List<Integer> questions = quizInterface.getQuestionsForQuiz(category, numQ).getBody();
